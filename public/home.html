@@ -134,54 +134,52 @@
 
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
+  
     const supabaseUrl = 'https://xeahranoixljdjllnjtf.supabase.co';
     const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlYWhyYW5vaXhsamRqbGxuanRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNDI1NjksImV4cCI6MjA3NjgxODU2OX0.JHF-CkvhmSBUM8BaQUUbPPQ0_LZezDHvdqEmA9IYh8M';
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
+  
     const profilesContainer = document.getElementById('profilesContainer');
     const userMenu = document.getElementById('userMenu');
     const dropdown = document.getElementById('dropdown');
     const logoutBtn = document.getElementById('logoutBtn');
     const profileLink = document.getElementById('profileLink');
-
+  
     // Toggle dropdown
     userMenu.addEventListener('click', () => {
       dropdown.classList.toggle('show');
     });
-
-    // Close dropdown when clicking outside
+  
     document.addEventListener('click', (e) => {
       if (!userMenu.contains(e.target)) {
         dropdown.classList.remove('show');
       }
     });
-
-    // Logout
+  
     logoutBtn.addEventListener('click', async () => {
       await supabase.auth.signOut();
       window.location.href = 'login.html';
     });
-
+  
     profileLink.addEventListener('click', () => {
-      window.location.href = 'profile.html'; // we'll build this later
+      window.location.href = 'profile.html';
     });
-
-    // Check if user is logged in
-    const { data: { user } } = await supabase.auth.getUser();
+  
+    // Check auth
+    const {  { user } } = await supabase.auth.getUser();
     if (!user) {
       window.location.href = 'login.html';
     }
-
-    // Fetch other users' profiles (exclude current user)
+  
+    // Fetch profiles
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .neq('id', user.id); // don't show current user
-
+        .neq('id', user.id);
+  
       if (error) throw error;
-
+  
       if (data.length === 0) {
         profilesContainer.innerHTML = '<div id="message">No roommates found. Be the first to join!</div>';
       } else {
@@ -204,18 +202,44 @@
           </div>
         `;
       }
-
-      // Add Match button logic (placeholder for now)
+  
+      // Real match logic
       document.querySelectorAll('.match-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          alert('Match request sent! (Coming soon: real matching + notifications)');
+        btn.addEventListener('click', async () => {
+          const targetId = btn.getAttribute('data-id');
+          const currentBtn = btn;
+  
+          // Disable button to prevent double-click
+          currentBtn.disabled = true;
+          currentBtn.textContent = 'Sending...';
+  
+          try {
+            const { error } = await supabase
+              .from('matches')
+              .insert([
+                {
+                  requester_id: user.id,
+                  target_id: targetId,
+                  status: 'pending'
+                }
+              ]);
+  
+            if (error) throw error;
+  
+            currentBtn.textContent = '✅ Request Sent!';
+            currentBtn.style.background = '#2ecc71';
+          } catch (err) {
+            console.error(err);
+            currentBtn.textContent = '❌ Failed';
+            currentBtn.disabled = false;
+          }
         });
       });
-
+  
     } catch (err) {
       console.error(err);
       profilesContainer.innerHTML = '<div id="message">❌ Failed to load profiles.</div>';
     }
   </script>
-</body>
+  </body>
 </html>
