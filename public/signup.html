@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign Up – Ethio Roommates</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 2rem; }
+    .container { max-width: 500px; margin: 0 auto; background: white; padding: 2rem; border-radius: 10px; }
+    h1 { text-align: center; margin-bottom: 1.5rem; color: #2c3e50; }
+    input, select, button { width: 100%; padding: 0.75rem; margin: 0.5rem 0; border: 1px solid #ddd; border-radius: 6px; }
+    button { background: #3498db; color: white; font-weight: bold; cursor: pointer; }
+    button:hover { background: #2980b9; }
+    .link { text-align: center; margin-top: 1rem; }
+    .link a { color: #3498db; text-decoration: none; }
+    .alert { padding: 0.75rem; margin: 1rem 0; border-radius: 6px; }
+    .alert-error { background: #f8d7da; color: #721c24; }
+    .alert-success { background: #d4edda; color: #155724; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Create Account</h1>
+    <div id="message"></div>
+
+    <form id="signupForm">
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Password (min 6 chars)" required minlength="6" />
+      
+      <input type="text" id="full_name" placeholder="Full Name" required />
+      
+      <select id="gender" required>
+        <option value="">Gender</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+      </select>
+      
+      <input type="number" id="age" placeholder="Age" min="18" max="100" required />
+      <input type="text" id="city" placeholder="City (e.g., Addis Ababa)" required />
+      <input type="number" id="budget" placeholder="Monthly Budget (ETB)" min="0" required />
+      <input type="tel" id="phone" placeholder="Phone (e.g., 0912345678)" pattern="[0-9]{10}" required />
+      
+      <textarea id="bio" placeholder="Tell us about yourself..." rows="3" required></textarea>
+
+      <button type="submit">Sign Up</button>
+    </form>
+
+    <div class="link">
+      Already have an account? <a href="login.html">Log In</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabaseUrl = 'https://xeahranoixljdjllnjtf.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlYWhyYW5vaXhsamRqbGxuanRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNDI1NjksImV4cCI6MjA3NjgxODU2OX0.JHF-CkvhmSBUM8BaQUUbPPQ0_LZezDHvdqEmA9IYh8M';
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    const form = document.getElementById('signupForm');
+    const msg = document.getElementById('message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = form.email.value;
+      const password = form.password.value;
+      const full_name = form.full_name.value;
+      const gender = form.gender.value;
+      const age = parseInt(form.age.value);
+      const city = form.city.value;
+      const budget = parseInt(form.budget.value);
+      const phone = form.phone.value;
+      const bio = form.bio.value;
+
+      msg.innerHTML = '';
+
+      try {
+        // Step 1: Sign up user
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name } // optional: store in auth.users.user_metadata
+          }
+        });
+
+        if (error) throw error;
+
+        if (data.user) {
+          // Step 2: Save detailed profile to `profiles` table
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: data.user.id,
+                full_name,
+                gender,
+                age,
+                city,
+                budget,
+                phone,
+                bio
+              }
+            ]);
+
+          if (profileError) throw profileError;
+
+          msg.className = 'alert alert-success';
+          msg.textContent = '✅ Account created! Redirecting to home...';
+          setTimeout(() => {
+            window.location.href = 'home.html';
+          }, 2000);
+        }
+      } catch (err) {
+        console.error(err);
+        msg.className = 'alert alert-error';
+        msg.textContent = '❌ ' + (err.message || 'Signup failed');
+      }
+    });
+  </script>
+</body>
+</html>
