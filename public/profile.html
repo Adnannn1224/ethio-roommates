@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Profile – Ethio Roommates</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f8f9fa;
+      color: #333;
+    }
+    nav {
+      background: white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 0 2rem;
+    }
+    .nav-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      height: 60px;
+    }
+    .logo { font-size: 1.4rem; font-weight: 700; color: #3498db; }
+    main {
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 { margin-bottom: 1.5rem; color: #2c3e50; text-align: center; }
+    .avatar-preview {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: #f0f0f0;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      color: #ccc;
+      overflow: hidden;
+    }
+    .avatar-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    input, select, textarea, button {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    button {
+      background: #3498db;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    button:hover { background: #2980b9; }
+    .btn-logout {
+      background: #e74c3c;
+    }
+    .btn-logout:hover { background: #c0392b; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <div class="logo">Ethio Roommates</div>
+      <div>Profile</div>
+    </div>
+  </nav>
+
+  <main>
+    <div class="card">
+      <h1>My Profile</h1>
+      <div class="avatar-preview" id="avatarPreview">👤</div>
+
+      <form id="profileForm">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="full_name" required />
+        </div>
+        <div class="form-group">
+          <label>Gender</label>
+          <select id="gender" required>
+            <option value="">Select</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Age</label>
+          <input type="number" id="age" min="18" max="100" required />
+        </div>
+        <div class="form-group">
+          <label>City</label>
+          <input type="text" id="city" required />
+        </div>
+        <div class="form-group">
+          <label>Monthly Budget (ETB)</label>
+          <input type="number" id="budget" min="0" required />
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" id="phone" pattern="[0-9]{10}" required />
+        </div>
+        <div class="form-group">
+          <label>Bio</label>
+          <textarea id="bio" placeholder="Tell others about yourself..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Profile Picture</label>
+          <input type="file" id="avatar" accept="image/*" />
+          <small>Max 2MB. JPG/PNG only.</small>
+        </div>
+        <button type="submit">💾 Save Changes</button>
+        <button type="button" class="btn-logout" id="logoutBtn">🚪 Logout</button>
+      </form>
+    </div>
+  </main>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabaseUrl = 'https://xeahranoixljdjllnjtf.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlYWhyYW5vaXhsamRqbGxuanRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNDI1NjksImV4cCI6MjA3NjgxODU2OX0.JHF-CkvhmSBUM8BaQUUbPPQ0_LZezDHvdqEmA9IYh8M';
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    const form = document.getElementById('profileForm');
+    const avatarPreview = document.getElementById('avatarPreview');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // Check auth
+    const {  { user } } = await supabase.auth.getUser();
+    if (!user) {
+      window.location.href = 'login.html';
+    }
+
+    // Load current profile
+    async function loadProfile() {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Profile load error:', error);
+        return;
+      }
+
+      // Fill form
+      document.getElementById('full_name').value = data.full_name || '';
+      document.getElementById('gender').value = data.gender || '';
+      document.getElementById('age').value = data.age || '';
+      document.getElementById('city').value = data.city || '';
+      document.getElementById('budget').value = data.budget || '';
+      document.getElementById('phone').value = data.phone || '';
+      document.getElementById('bio').value = data.bio || '';
+
+      // Show avatar
+      if (data.avatar_url) {
+        avatarPreview.innerHTML = `<img src="${data.avatar_url}" alt="Avatar">`;
+      }
+    }
+
+    // Upload avatar
+    async function uploadAvatar(file) {
+      if (!file) return null;
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (error) {
+        throw error;
+      }
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      return data.publicUrl;
+    }
+
+    // Save profile
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const avatarInput = document.getElementById('avatar');
+      let avatarUrl = null;
+
+      try {
+        if (avatarInput.files[0]) {
+          avatarUrl = await uploadAvatar(avatarInput.files[0]);
+        }
+
+        const updates = {
+          full_name: form.full_name.value,
+          gender: form.gender.value,
+          age: parseInt(form.age.value),
+          city: form.city.value,
+          budget: parseInt(form.budget.value),
+          phone: form.phone.value,
+          bio: form.bio.value,
+          updated_at: new Date().toISOString()
+        };
+
+        if (avatarUrl) updates.avatar_url = avatarUrl;
+
+        const { error } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', user.id);
+
+        if (error) throw error;
+
+        alert('✅ Profile updated!');
+        window.location.reload(); // refresh to show new avatar
+      } catch (err) {
+        console.error(err);
+        alert('❌ Failed to update profile: ' + (err.message || 'Unknown error'));
+      }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    // Init
+    loadProfile();
+  </script>
+</body>
+</html>
