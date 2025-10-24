@@ -159,7 +159,7 @@
       window.location.href = 'login.html';
     }
 
-    // Load current profile
+    // Load profile
     async function loadProfile() {
       const { data, error } = await supabase
         .from('profiles')
@@ -168,11 +168,10 @@
         .single();
 
       if (error) {
-        console.error('Profile load error:', error);
+        console.error('Load profile error:', error);
         return;
       }
 
-      // Fill form
       document.getElementById('full_name').value = data.full_name || '';
       document.getElementById('gender').value = data.gender || '';
       document.getElementById('age').value = data.age || '';
@@ -181,7 +180,6 @@
       document.getElementById('phone').value = data.phone || '';
       document.getElementById('bio').value = data.bio || '';
 
-      // Show avatar
       if (data.avatar_url) {
         avatarPreview.innerHTML = `<img src="${data.avatar_url}" alt="Avatar">`;
       }
@@ -189,7 +187,6 @@
 
     // Upload avatar
     async function uploadAvatar(file) {
-      if (!file) return null;
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
@@ -198,9 +195,7 @@
         .from('avatars')
         .upload(filePath, file, { upsert: true });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       return data.publicUrl;
@@ -239,10 +234,10 @@
         if (error) throw error;
 
         alert('✅ Profile updated!');
-        window.location.reload(); // refresh to show new avatar
+        window.location.reload();
       } catch (err) {
-        console.error(err);
-        alert('❌ Failed to update profile: ' + (err.message || 'Unknown error'));
+        console.error('Save error:', err);
+        alert('❌ Failed to update: ' + (err.message || 'Unknown error'));
       }
     });
 
@@ -251,7 +246,6 @@
       window.location.href = 'login.html';
     });
 
-    // Init
     loadProfile();
   </script>
 </body>
