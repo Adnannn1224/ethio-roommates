@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Home – Ethio Roommates</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f8f9fa;
+      color: #333;
+    }
+    nav {
+      background: white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 0 2rem;
+    }
+    .nav-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      height: 60px;
+    }
+    .logo { font-size: 1.4rem; font-weight: 700; color: #3498db; }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .user-menu {
+      position: relative;
+      cursor: pointer;
+    }
+    .dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: white;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      width: 180px;
+      display: none;
+    }
+    .dropdown.show { display: block; }
+    .dropdown-item {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+    }
+    .dropdown-item:hover { background: #f1f1f1; }
+
+    main {
+      max-width: 1000px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+    }
+    h1 { margin-bottom: 1.5rem; color: #2c3e50; }
+
+    .profiles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    .profile-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .avatar {
+      width: 100%;
+      height: 180px;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      color: #ccc;
+    }
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .card-body {
+      padding: 1rem;
+    }
+    .card-body h3 { margin-bottom: 0.5rem; }
+    .card-body p { color: #666; font-size: 0.95rem; margin-bottom: 1rem; }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.6rem;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn:hover { background: #2980b9; }
+
+    #message {
+      text-align: center;
+      padding: 2rem;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <div class="logo">Ethio Roommates</div>
+      <div class="nav-links">
+        <a href="home.html">Home</a>
+        <a href="#">Messages</a>
+        <a href="#">Notifications</a>
+      </div>
+      <div class="user-menu" id="userMenu">
+        👤
+        <div class="dropdown" id="dropdown">
+          <div class="dropdown-item" id="profileLink">Profile</div>
+          <div class="dropdown-item" id="logoutBtn">Logout</div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <h1>Find Your Roommate</h1>
+    <div id="profilesContainer">
+      <div id="message">Loading profiles...</div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabaseUrl = 'https://xeahranoixljdjllnjtf.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlYWhyYW5vaXhsamRqbGxuanRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNDI1NjksImV4cCI6MjA3NjgxODU2OX0.JHF-CkvhmSBUM8BaQUUbPPQ0_LZezDHvdqEmA9IYh8M';
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    const profilesContainer = document.getElementById('profilesContainer');
+    const userMenu = document.getElementById('userMenu');
+    const dropdown = document.getElementById('dropdown');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const profileLink = document.getElementById('profileLink');
+
+    // Toggle dropdown
+    userMenu.addEventListener('click', () => {
+      dropdown.classList.toggle('show');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!userMenu.contains(e.target)) {
+        dropdown.classList.remove('show');
+      }
+    });
+
+    // Logout
+    logoutBtn.addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    profileLink.addEventListener('click', () => {
+      window.location.href = 'profile.html'; // we'll build this later
+    });
+
+    // Check if user is logged in
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      window.location.href = 'login.html';
+    }
+
+    // Fetch other users' profiles (exclude current user)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .neq('id', user.id); // don't show current user
+
+      if (error) throw error;
+
+      if (data.length === 0) {
+        profilesContainer.innerHTML = '<div id="message">No roommates found. Be the first to join!</div>';
+      } else {
+        profilesContainer.innerHTML = `
+          <div class="profiles-grid">
+            ${data.map(profile => `
+              <div class="profile-card">
+                <div class="avatar">
+                  ${profile.avatar_url 
+                    ? `<img src="${profile.avatar_url}" alt="${profile.full_name}">`
+                    : '👤'}
+                </div>
+                <div class="card-body">
+                  <h3>${profile.full_name}</h3>
+                  <p>${profile.bio || 'No bio provided.'}</p>
+                  <button class="btn match-btn" data-id="${profile.id}">❤️ Match</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      // Add Match button logic (placeholder for now)
+      document.querySelectorAll('.match-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          alert('Match request sent! (Coming soon: real matching + notifications)');
+        });
+      });
+
+    } catch (err) {
+      console.error(err);
+      profilesContainer.innerHTML = '<div id="message">❌ Failed to load profiles.</div>';
+    }
+  </script>
+</body>
+</html>
