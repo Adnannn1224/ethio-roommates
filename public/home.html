@@ -135,109 +135,110 @@
 
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-    const supabaseUrl = 'https://xeahranoixljdjllnjtf.supabase.co';
-    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlYWhyYW5vaXhsamRqbGxuanRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNDI1NjksImV4cCI6MjA3NjgxODU2OX0.JHF-CkvhmSBUM8BaQUUbPPQ0_LZezDHvdqEmA9IYh8M';
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    const profilesContainer = document.getElementById('profilesContainer');
-    const userMenu = document.getElementById('userMenu');
-    const dropdown = document.getElementById('dropdown');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const profileLink = document.getElementById('profileLink');
-
-    // Toggle dropdown
-    userMenu.addEventListener('click', (e) => {
-      e.stopPropagation();
-      dropdown.classList.toggle('show');
-    });
-
-    // Close dropdown on outside click
-    document.addEventListener('click', () => {
-      dropdown.classList.remove('show');
-    });
-
-    // Prevent closing when clicking inside dropdown
-    dropdown.addEventListener('click', (e) => {
-      e.stopPropagation();
-    });
-
-    // Logout
-    logoutBtn.addEventListener('click', async () => {
-      await supabase.auth.signOut();
-      window.location.href = 'login.html';
-    });
-
-    profileLink.addEventListener('click', () => {
-      window.location.href = 'profile.html';
-    });
-
-    // Check if user is logged in
+  
+    const supabase = createClient(
+      'https://xeahranoixljdjllnjtf.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlYWhyYW5vaXhsamRqbGxuanRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNDI1NjksImV4cCI6MjA3NjgxODU2OX0.JHF-CkvhmSBUM8BaQUUbPPQ0_LZezDHvdqEmA9IYh8M'
+    );
+  
+    const container = document.getElementById('profilesContainer');
+  
     const { data } = await supabase.auth.getUser();
-const user = data.user;
-    if (!user) {
-      window.location.href = 'login.html';
-    }
-
-    // Fetch other users' profiles
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, bio, avatar_url')
-        .neq('id', user.id);
-
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        profilesContainer.innerHTML = '<div id="message">No roommates found yet. Be the first to join!</div>';
-      } else {
-        profilesContainer.innerHTML = `
-          <div class="profiles-grid">
-            ${data.map(profile => `
-              <div class="profile-card">
-                <div class="avatar">
-                  ${profile.avatar_url 
-                    ? `<img src="${profile.avatar_url}" alt="${profile.full_name}">`
-                    : '👤'}
+    const user = data.user;
+    if (!user) return window.location.href = 'login.html';
+  
+    // Fetch profiles
+    async function loadProfiles() {
+      try {
+        const {  profiles, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, bio, avatar_url')
+          .neq('id', user.id);
+  
+        if (error) throw error;
+  
+        // Fetch incoming pending matches (where user is target)
+        const {  incomingMatches, error: matchError } = await supabase
+          .from('matches')
+          .select('requester_id')
+          .eq('target_id', user.id)
+          .eq('status', 'pending');
+  
+        if (matchError) console.warn('Match fetch warning:', matchError);
+  
+        const pendingRequesterIds = new Set(incomingMatches?.map(m => m.requester_id) || []);
+  
+        if (!profiles || profiles.length === 0) {
+          container.innerHTML = '<div id="message">No roommates found.</div>';
+        } else {
+          container.innerHTML = `
+            <div class="profiles-grid">
+              ${profiles.map(p => `
+                <div class="profile-card">
+                  <div class="avatar">${p.avatar_url ? `<img src="${p.avatar_url}" alt="${p.full_name}">` : '👤'}</div>
+                  <div class="card-body">
+                    <h3>${p.full_name}</h3>
+                    <p>${p.bio || 'No bio.'}</p>
+                    ${pendingRequesterIds.has(p.id) 
+                      ? `<button class="btn accept-btn" data-id="${p.id}">✅ Accept Match</button>`
+                      : `<button class="btn match-btn" data-id="${p.id}">❤️ Match</button>`
+                    }
+                  </div>
                 </div>
-                <div class="card-body">
-                  <h3>${profile.full_name}</h3>
-                  <p>${profile.bio || 'No bio provided.'}</p>
-                  <button class="btn match-btn" data-id="${profile.id}">❤️ Match</button>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        `;
+              `).join('')}
+            </div>
+          `;
+  
+          // Match button logic
+          document.querySelectorAll('.match-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const targetId = btn.getAttribute('data-id');
+              btn.disabled = true;
+              btn.textContent = 'Sending...';
+              const { error } = await supabase
+                .from('matches')
+                .insert([{ requester_id: user.id, target_id: targetId, status: 'pending' }]);
+              if (error) {
+                btn.textContent = '❌ Failed';
+                btn.disabled = false;
+              } else {
+                btn.textContent = '✅ Sent!';
+                btn.style.background = '#2ecc71';
+              }
+            });
+          });
+  
+          // Accept button logic
+          document.querySelectorAll('.accept-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const requesterId = btn.getAttribute('data-id');
+              btn.disabled = true;
+              btn.textContent = 'Accepting...';
+  
+              const { error } = await supabase
+                .from('matches')
+                .update({ status: 'accepted' })
+                .eq('requester_id', requesterId)
+                .eq('target_id', user.id)
+                .eq('status', 'pending');
+  
+              if (error) {
+                btn.textContent = '❌ Failed';
+                btn.disabled = false;
+              } else {
+                btn.textContent = '🤝 Matched!';
+                btn.style.background = '#27ae60';
+              }
+            });
+          });
+        }
+      } catch (err) {
+        console.error('Error:', err);
+        container.innerHTML = `<div id="message">❌ Error: ${err.message}</div>`;
       }
-
-      // Add match functionality
-      document.querySelectorAll('.match-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const targetId = btn.getAttribute('data-id');
-          btn.disabled = true;
-          btn.textContent = 'Sending...';
-
-          try {
-            const { error } = await supabase
-              .from('matches')
-              .insert([{ requester_id: user.id, target_id: targetId, status: 'pending' }]);
-
-            if (error) throw error;
-            btn.textContent = '✅ Sent!';
-            btn.style.background = '#2ecc71';
-          } catch (err) {
-            console.error('Match error:', err);
-            btn.textContent = '❌ Failed';
-            btn.disabled = false;
-          }
-        });
-      });
-
-    } catch (err) {
-      console.error('Fetch profiles error:', err);
-      profilesContainer.innerHTML = `<div id="message">❌ Failed to load profiles. Check console for details.</div>`;
     }
+  
+    loadProfiles();
   </script>
-</body>
+  </body>
 </html>
