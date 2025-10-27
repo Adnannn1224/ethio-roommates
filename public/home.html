@@ -143,12 +143,16 @@
   
     const container = document.getElementById('profilesContainer');
   
-    const { data } = await supabase.auth.getUser();
-    const user = data.user;
-    if (!user) return window.location.href = 'login.html';
+    // ✅ Wrap everything in an async function
+    async function init() {
+      const { data } = await supabase.auth.getUser();
+      const user = data.user;
   
-    // Fetch profiles
-    async function loadProfiles() {
+      if (!user) {
+        window.location.href = 'login.html';
+        return; // ✅ Now inside a function — valid!
+      }
+  
       try {
         const {  profiles, error } = await supabase
           .from('profiles')
@@ -157,19 +161,16 @@
   
         if (error) throw error;
   
-        // Fetch incoming pending matches (where user is target)
-        const {  incomingMatches, error: matchError } = await supabase
+        const {  incomingMatches } = await supabase
           .from('matches')
           .select('requester_id')
           .eq('target_id', user.id)
           .eq('status', 'pending');
   
-        if (matchError) console.warn('Match fetch warning:', matchError);
-  
         const pendingRequesterIds = new Set(incomingMatches?.map(m => m.requester_id) || []);
   
         if (!profiles || profiles.length === 0) {
-          container.innerHTML = '<div id="message">No roommates found.</div>';
+          container.innerHTML = '<div>No roommates found.</div>';
         } else {
           container.innerHTML = `
             <div class="profiles-grid">
@@ -180,7 +181,7 @@
                     <h3>${p.full_name}</h3>
                     <p>${p.bio || 'No bio.'}</p>
                     ${pendingRequesterIds.has(p.id) 
-                      ? `<button class="btn accept-btn" data-id="${p.id}">✅ Accept Match</button>`
+                      ? `<button class="btn accept-btn" data-id="${p.id}">✅ Accept</button>`
                       : `<button class="btn match-btn" data-id="${p.id}">❤️ Match</button>`
                     }
                   </div>
@@ -189,56 +190,45 @@
             </div>
           `;
   
-          // Match button logic
+          // Match button
           document.querySelectorAll('.match-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
-              const targetId = btn.getAttribute('data-id');
+              const id = btn.dataset.id;
               btn.disabled = true;
               btn.textContent = 'Sending...';
               const { error } = await supabase
                 .from('matches')
-                .insert([{ requester_id: user.id, target_id: targetId, status: 'pending' }]);
-              if (error) {
-                btn.textContent = '❌ Failed';
-                btn.disabled = false;
-              } else {
-                btn.textContent = '✅ Sent!';
-                btn.style.background = '#2ecc71';
-              }
+                .insert([{ requester_id: user.id, target_id: id, status: 'pending' }]);
+              btn.textContent = error ? '❌ Failed' : '✅ Sent!';
+              if (!error) btn.style.background = '#2ecc71';
             });
           });
   
-          // Accept button logic
+          // Accept button
           document.querySelectorAll('.accept-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
-              const requesterId = btn.getAttribute('data-id');
+              const id = btn.dataset.id;
               btn.disabled = true;
               btn.textContent = 'Accepting...';
-  
               const { error } = await supabase
                 .from('matches')
                 .update({ status: 'accepted' })
-                .eq('requester_id', requesterId)
+                .eq('requester_id', id)
                 .eq('target_id', user.id)
                 .eq('status', 'pending');
-  
-              if (error) {
-                btn.textContent = '❌ Failed';
-                btn.disabled = false;
-              } else {
-                btn.textContent = '🤝 Matched!';
-                btn.style.background = '#27ae60';
-              }
+              btn.textContent = error ? '❌ Failed' : '🤝 Matched!';
+              if (!error) btn.style.background = '#27ae60';
             });
           });
         }
       } catch (err) {
-        console.error('Error:', err);
-        container.innerHTML = `<div id="message">❌ Error: ${err.message}</div>`;
+        console.error(err);
+        container.innerHTML = `<div>❌ Error: ${err.message}</div>`;
       }
     }
   
-    loadProfiles();
+    // ✅ Call the function
+    init();
   </script>
-  </body>
+    </body>
 </html>
